@@ -1,0 +1,421 @@
+---
+title: "TFG, preprocesing de les dades"
+author: "Marcel Canals"
+date: "8/3/2022"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Preprocessament de la base de dades
+
+La base de dades està composada per dues taules. Una primera anomenada "branches" que ens dona informació sobre les tres branques on es preparen els menjars d'aquesta cadena de restaurants i una segona taula amomenada "comandes" on hi ha tota la informació sobre cada una de les comandes que fa el client.
+
+## Taula "branches"
+
+### Variables de la taula "branches"
+
+- *branch_code*: [Character] Codi únic de cada branca (és la clau primaria que ens permetrà unir la aquesta taula amb la posterior){Clau Primaria}.
+- *branch_name*: [Character] Nom complet de cada branca.
+- *branch_lat*: [Numeric] Latitud de la branca en qüestió
+- *branch_lon*: [Numeric] Longitud de la branca en qüestió
+
+### Importació de la taula "branches"
+
+Parametrització del camí i de la base de dades:
+
+```{r}
+path0 <-"C:/Users/marce/OneDrive/Escriptori/UNI/C4/s2/TFG/Idea  Delivery restaurante Melbourne/bases de datos/"
+file <- "branches.csv"
+```
+
+Importació:
+
+```{r}
+branches <- read.csv(paste0(path0,file), header = TRUE)
+```
+
+Ja tenim importada la primera taula. Realitzem un petit anàlisis per veure com és:
+
+```{r}
+head(branches)
+dim(branches)
+```
+La primera  taula és molt simple; 3 observacions que representen les tres branques i les 4 variables explicades.
+
+## Taula "comandes"
+Aquesta taula en canvi, conté diverses variables importants i ens centrarem en l'estudi d'aquesta taula.
+
+### Variables de la taula "comandes"
+
+- *order_id*: [Character] ID de la comanda {Clau Primaria}.
+- *date*: [Character] Dia de la comanda.
+- *time*: [Character] Hora exacta de la creació de la comanda.
+- *order_type*: [Character] Tipus de menjar que es demana. Hi han tres tipus: "Breakfast" que sería l'esmorzar, "Lunch" el dinar i "Dinner" el sopar.
+Hem de tindre en compte que els horaris d'alimentació espanyols son molt diferents a la resta i per tant veurem resultats com sopar a les 7 o 8 per exemple o dinar a les 12.
+"Breakfast": Horari de 8:00:00 a 12:00:00
+"Lunch": Horari de 12:00:01 a 16:00:00
+"Dinner": Horari de 16:00:01 a 20:00:00
+- *branch_code*: [Character] Codi de la branca. Variable que ens servira per unir aquesta taula amb la anterior.
+- *order_items*: [Character] Cadena de caracters que mostren els plats de la comanda.
+- *order_price*: [Numeric] Preu de cada comanda en dolars australians.
+- *costumer_lat*: [Numeric] Latitud de la vivenda del client (coordenada Y, nort o sud)
+- *costumer_lon*: [Numeric] Longitud de la vivenda del client (coordenada X, est o oest)
+- *costumerHasloyalty.*: [Integer] Variable lógica que indica si un client té una targeta de fidelitat. En cas en que en tingui se li aplicarà un desconte del 50% en les despeses de la tramesa ("Gastos de envio").
+- *distance_to_customer_KM*: Distància entre el client i una de les branques del restaurant.
+- *delivery_fee*: Preu de l'enviament, de la tramesa.
+
+
+### Importació de la taula "comandes"
+
+Parametrització del camí i de la base de dades:
+
+```{r, include = FALSE}
+path <-"C:/Users/marce/OneDrive/Escriptori/UNI/C4/s2/TFG/Idea  Delivery restaurante Melbourne/bases de datos/"
+file <- "dirty_data.csv"
+```
+
+Importació:
+
+```{r}
+comandes <- read.csv(paste0(path,file), header = TRUE)
+```
+
+En aquest cas la taula "comandes" té 500 observacions i 12 variables, explicades anteriorment.
+
+El que ens interessa ara és realitzar un petit estudi d'aquesta taula per observar errors d'importació, errors humans i formats que s'utilitzen incorrectament.
+
+
+## Listat de les variables segons la seva classe
+```{r}
+LlistaVar <- sapply(comandes,class)
+LlistaVar
+```
+Veiem alguns errors en els formats, també observem un punt final en la variable *customerHasloyalty.* i creiem que el nom de la variable *distance_to_customer_KM* es pot reduir considerablement.
+
+Executem una vista ràpida de la taula.
+```{r}
+head(comandes)
+```
+Veiem com el preu és massa alt per tractar-se de dollars americans USD, s'haurà de canviar. També modificarem la variable *customerHasloyalty.* perquè sigui factor.
+
+Per tant ja podem iniciar una primera part del preprocessament.
+
+### Canvis de formats
+
+1. Canvi del format de la variable *date* de Character a [Data format "yyyy-mm-dd"]
+2. Canvi del format de la variable *time* de Character a [Data format "hh:mm:ss"]
+3. Canvi de Character a factor en la variable *order_type*.
+4. Canvi del nom de la variable *distance_to_customer_KM* a *distanceKM*
+5. Eliminació del punt final de la variable *costumerHasloyalty.* -> *costumerHasloyalty*
+6. Canvi de dolars australians a dolars americans en les dues variables monetaries
+7. Canvi de la variable de *costumerHasloyalty* Integer a Factor afegint la etiquieta Yes = 1 i NO = 0
+8. Canviar en les dues taules el format de la variable *branch_code* de Character a Factor i posar especial atenció a la variable de la taula "comandes" i corregir els errors
+
+## 1 i 2
+```{r}
+comandes$date <- as.Date(comandes$date)
+#install.packages("lubridate")
+library(lubridate) #llibreria que facilita els formats de dates temporals
+comandes$time=as.POSIXct(comandes$time,format="%H:%M:%S")
+```
+En el canvi de format de la variable *time* per poder passar de Character a Date s'ha d'afegir un any, mes i dia que no té cap significat. Només ens centrarem en les hores minuts i segons amb format CET 
+
+## 3
+```{r}
+comandes$order_type<- as.factor(comandes$order_type)
+```
+
+## 4,5
+```{r}
+library(plyr)
+comandes<-rename(comandes,c(distance_to_customer_KM="distanceKM",customerHasloyalty.="customerHasloyalty"))
+```
+
+## 6
+La moneda d'Australia són els dolars australians, que sempre han tingut un valor més gran que el dolar USD. Tot i que la relació monetaria vagi cambiant agafarem com a relació fixa que 1 dolar australia és 0.75 dolar americà.
+Per tant realitzem el següent factor de conversió:
+
+```{r}
+comandes$order_price<-round(0.75*comandes$order_price,2)
+comandes$delivery_fee<-round(0.75*comandes$delivery_fee,2)
+```
+
+# 7
+```{r}
+comandes$customerHasloyalty<-as.factor(comandes$customerHasloyalty)
+levels(comandes$customerHasloyalty)<-c("No","Yes")
+```
+
+# 8
+Un problema que sorgeix és que hi han hagut errors en la tipificació dels codis
+ja que hi han casos on el codi està en minuscula quan hauria d'estar en majuscules.
+Ho veiem a la taula següent
+```{r}
+table(comandes$branch_code)
+```
+Per tant hem de corregir les minuscules per majuscules i després factoritzar la variable en les dues taules.
+
+```{r}
+comandes$branch_code<-toupper(comandes$branch_code)
+table(comandes$branch_code) #s'ha arreglat l'error
+comandes$branch_code<-as.factor(comandes$branch_code)
+branches$branch_code<-as.factor(branches$branch_code)
+```
+
+
+Una vegada acabada aquesta primera part tornem a fer un comptatge de les clases de les variables per veure si les hem cambiat correctament
+```{r}
+str(comandes)
+```
+Ja estan tots els formats correctes i s'han fet les transformacions adients.
+
+
+## Estudi d'errors, missings i outliers
+
+9. Estudi de les latituds i longituds correctes
+10. Estudi dels missings en les diferents variables
+11. Correcció de la variable *order_type* tenint en compte *date* (hi han casos on es dona una etiqueta de "lunch" quan la hora de comanda és a les 9 del matí)
+12. Comprobacio que totes les comandes s'hagin realitzat l'any 2018
+13. Tractament general d'outliers per variables numériques
+14. Eliminació d'algunes variables que creiem sense importancia (parlar amb tutora)
+ 
+# 9
+Sabem que Melbourne és una de les ciutats importants d'Australia. Aquesta illa del continent oceànic està situada a l'hemisferi sud, aprop de Japó, Nova Zelanda i totes les illes de Nova Guinea. Està rodejada per l'oceà índic pel costat oest i l'oceà pacific per l'est.
+
+Més concretament les cordenades centrals de geolocalització de Melbourne són $-37,81753^{\circ} N$ , $144,96715^{\circ} E$.
+Per tant hem d'estudiar que les coordenades dels clients estiguin aprop d'aquestes i en cas contrari intentar corregir l'error.
+Per no confondren's ha de quedar clar que la longitud representa l'eix de les x i la latitud l'eix de les y. També va bé recordar que la pot ser negativa i té un domini de -180 fins a 180, la Latitud també pot pendre valors negatius i el seu domini va de -90 fins a 90.
+$$ Longitud=x  \space\ \space\ \space\ Domini:[-180,180] \\ Latitud=y  \space\ \space\ \space\ Domini:[-90,90]$$
+Mirem primer de tot gràficament per saber si hi han outliers.
+
+```{r}
+plot(comandes$customer_lon,comandes$customer_lat,col=c(2),pch=c(16),cex=2,main="Posició geogràfica dels clients",xlab = "Longitud",ylab="Latitud")
+```
+
+Veiem que hi han tres zones de possibles clients.
+
+La primera zona es regeix aproximadament dintre de les coordenades (-37 longitud, 145 latitud). Aquesta zona no exiteix en el nostre planeta ja que sabem que la latitud no pot ser superior a 150.
+Gràfiquem per saber exactament quants outliers hi han exactament dins d'aquesta zona.
+
+```{r}
+plot(comandes$customer_lon,comandes$customer_lat,col=c(2),xlim = c(-37.85,-37.70),ylim=c(144.9,145.05),main="Posició geogràfica dels clients de la zona 1",xlab = "Longitud",ylab="Latitud")
+```
+
+Podem visualitzar 4 outliers, tenim la teoria de que són clients que molt possiblement tinguin les dades de longitud i latitud intercambiades i per aixó es deu l'error.
+Una possible solució és identificar aquests 4 clients i intercambiar les dues columnes per tal de que siguin posicions geogràfiques reals.
+Una altra solució més conservadora sería eliminar aquestes observacions, però preferim la primera opció perquè creiem lógica la teoria de variables intercanviades. 
+```{r}
+table(comandes$customer_lat>144)#efectivament son aquests 4
+a<-which(comandes$customer_lat>144)#identifiquem les posicions d'aquests
+a
+lat_inc<-comandes$customer_lat[which(comandes$customer_lat>144)]#latituds incorrectes
+lon_inc<-comandes$customer_lon[which(comandes$customer_lat>144)]#longituds incorrectes
+comandes$customer_lat[a]<-lon_inc#correcio latitud
+comandes$customer_lon[a]<-lat_inc#correcio longitud
+table(comandes$customer_lat>144) #prova de que s'ha realitzat correctament el canvi
+table(comandes$customer_lon>0) #segona prova per si acas
+```
+Hem arreglat els outliers de la primera zona!
+
+La segona zona està aproximadament en (longitud 145, latitud 37). No té gaire sentit perquè aquella zona és oceanica, aprop de les costes de Japó. Per tant una altra teoria plausible és que en aquest cas el que ha passat ha sigut que hi ha hagut un problema amb el signe de la latitud (probablement error humà haver-se oblidat el signe negatiu).
+Altrament pododriem considerar triar l'opció conservadora i desfer-nos d'aquests outliers però confiem en que l'error s'hagi causat per aquest error del signe.
+Mirem la gràfica per saber el nombre de outliers en aquesta zona.
+
+```{r}
+plot(comandes$customer_lon,comandes$customer_lat,col=c(2),ylim = c(37.78,37.85),xlim=c(144.9,145.05),main="Posició geogràfica dels clients de la zona 2",xlab = "Longitud",ylab="Latitud")
+```
+
+A diferència de la primera zona, aquest error s'ha propagat per nombrosos clients.
+Ho solucionarem identificant els clients d'aquesta zona i canviant el signe.
+
+```{r}
+table(comandes$customer_lat>37)# hi han 37 clients amb l'error en la latitud
+b<-which(comandes$customer_lat>37)#identifiquem les posicions d'aquests
+comandes$customer_lat[b]<--comandes$customer_lat[b] #canvi de signe
+table(comandes$customer_lon>0) #fem una prova per si acas
+```
+Ja hem solucionat els outliers de la segona zona!
+
+Ara per acabar de confirmar-ho graficarem les posicions dels clients conjuntament amb les posicions dels establiments
+
+```{r}
+#plot(comandes$customer_lat,comandes$customer_lon,main="Posició geogràfica dels clients",xlab = "Longitud",ylab="Latitud")
+plot(comandes$customer_lon,comandes$customer_lat,xlim = c(144.9,145.05),ylim=c(-37.865,-37.765),main="Posició geogràfica dels clients i establiments",xlab = "Longitud",ylab="Latitud") 
+points(branches$branch_lon,branches$branch_lat,col=c(4,6,7),pch=7,cex=2)
+legend("topright",c(branches$branch_name[1],branches$branch_name[2],branches$branch_name[3]),text.col = c(4,6,7))
+```
+
+Tot sembla tenir sentit i més correcte!
+
+Faltaria realitzar boxplots en altres variables per veure si hi han més outliers
+
+## 10.Tractament dels missings
+Els missings o valors nuls són espais buits dins d'una base de dades on s'ha perdut infprmació d'una observació per diverses raons.
+El nostre procediment és establir quants i quins missings apareixen en aquesta base de dades i intentar estimar-los i/o eliminar-los en el pitjor dels casos.
+
+```{r}
+(ConteNA <- colSums(is.na(comandes))>0)
+```
+Per sort només tenim una variable amb NA's. Però sorgeix el problema que justament és una variable temporal que ens mostra el dia, mes i any de la comanda i normalment aquests missings són difícils de tractar.
+Anem a identificar-los:
+
+```{r}
+table(is.na(comandes$date)) #hi han 22 missings
+which(is.na(comandes$date)==TRUE) #els hem identificat
+```
+
+Per tractar missigs de variables temporals com la data no es pot fer una estimació normal com KNN o MICE. Crec que la opció més indicada és remourels de la base de dades perquè abans d'estimar una data incorrecta preferim eliminar-los de les dades. 
+
+```{r}
+comandes<-comandes[-which(is.na(comandes$date)==TRUE),]
+```
+
+
+## 11 Correcció de la variable *order_type* 
+```{r}
+head(comandes[,c("time","order_type")],20)
+```
+
+Observant la base dades hem vist que la variable *order_type* no funciona del tot bé ja que no respecta el horari que indica la variable *time*. Per exemple hi ha casos on s'estableix una etiqueta de "dinner" quan la hora de comanda és a les 11 del matí. Recordem que:
+"Breakfast": Horari de 8:00:00 a 12:00:00
+"Lunch": Horari de 12:00:01 a 16:00:00
+"Dinner": Horari de 16:00:01 a 20:00:00
+
+Una vegada sabut aixó hem de corregir la variable seguints els passos d'identificar els errors, substituir per les etiquetes correctes i comprobar que s'ha modificat d'acord al ordre establert.
+
+Primer hem de mirar si hi han comandes en horaris diferents (entre les 20:00:00 i les 8:00:00)
+```{r,warning=FALSE}
+library(hms)
+time<-format(comandes$time,format="%H:%M:%S")
+table(time>"20:00:00")#no hi ha cap comanda més d'hora que el horari establert
+table(time<"08:00:00")#no  hi ha cap comanda més tard que el horari establert
+```
+Efectivament no hi ha cap comanda fora dels marges dels horaris dels establiments.
+
+La millor solució creiem que es basa en evaluar totes les observacions i veure si compleixen la condicio de les etiquetes de *order_type*, en cas contrari canviar l'etiqueta.
+```{r}
+comandes$time<-format(comandes$time, format = "%H:%M:%S")#tranf a character per operar
+cont<-0
+for( i in 1:length(comandes$time)){
+   if(comandes$order_type[i]=="Breakfast"){
+          if(comandes$time[i]>="08:00:00" && comandes$time[i]<="12:00:00"){
+            cont<-cont
+          }else if(comandes$time[i]>="12:00:01" && comandes$time[i]<="16:00:00"){
+            cont<-cont +1
+            comandes$order_type[i]<-"Lunch"
+          }else{
+            cont<-cont +1
+            comandes$order_type[i]<-"Dinner"
+          }
+   }else if(comandes$order_type[i]=="Lunch"){
+          if(comandes$time[i]>="08:00:00" && comandes$time[i]<="12:00:00"){
+            cont<-cont +1
+            comandes$order_type[i]<-"Breakfast"
+          }else if(comandes$time[i]>="12:00:01" && comandes$time[i]<="16:00:00"){
+            cont<-cont
+          }else{
+            cont<-cont +1
+            comandes$order_type[i]<-"Dinner"
+          }     
+   }else{
+         if(comandes$time[i]>="08:00:00" && comandes$time[i]<="12:00:00"){
+          cont<-cont +1
+          comandes$order_type[i]<-"Breakfast"
+        }else if(comandes$time[i]>="12:00:01" && comandes$time[i]<="16:00:00"){
+          cont<-cont +1
+          comandes$order_type[i]<-"Lunch"
+        }else{
+          cont<-cont 
+        }
+   }
+}
+cont
+head(comandes[,c("time","order_type")],20)
+```
+A priori sembla que hem solucionat el problema, hi havien 37 casos on l'etiqueta de l'ordre de comanda estava malament. Amb la vista anterior podem veure que no hi ha cap error.
+
+## 12. Comprobacio que totes les comandes s'hagin realitzat l'any 2018
+L'Estudi d'aquest TFG es basa en les comandes realitzades l'any 2018, per tant ens hem d'asegurar que efectivament totes les observacions estiguin en l'any d'estudi. Si hi ha casos de diferents anys haurem d'eliminar aquestes observacions i si apareixen outliers els haurem de modificar.
+
+```{r}
+table(comandes$date < "2018-01-01")
+table(comandes$date > "2018-12-31")
+```
+Recordem que hi han 22 missings i per aixó només apareixen 478 observacions.
+Aquest codi ens informa de que hi ha 15 observacions on la data és inferior a l'any 2018.
+Anem a aprofunditzar més per veure quines dates són exactament.
+
+```{r}
+#which(comandes$date < "2018-01-01") ens dona le posicions
+comandes$date[which(comandes$date < "2018-01-01")]
+```
+Les 15 observacions són outliers, errors d'introducció de dades a la base perquè és impossible que aquests anys siguin reals (ens situaria a l'època dels romans!).
+També podria donar-se el cas que es tractesin d'anys on els hi falta el 2 dels millers. 
+Sigui com sigui, cap d'aquests ens interesa i per tant creiem que la millor opció és eliminar-los.
+
+```{r}
+comandes<-comandes[-which(comandes$date < "2018-01-01"),] #eliminem tots 15
+```
+
+
+## 13. Tractament general d'outliers per variables numériques
+Per acabar els últims passos del "preprocessing" realitzarem una serie de boxplots per les variables numériques per apreciar si hi han outliers que s'hagin passat per alt.
+```{r,out.width="50%"}
+library(ggplot2)
+ListaVar <- sapply(comandes,class)
+VarInt <- which(ListaVar == "integer")
+VarCat <- which(ListaVar == "character")
+VarNum <- which(ListaVar == "numeric")
+
+# Hacemos histogramas y boxplots para las variables numericas.
+
+#Boxplots
+loopNum1 <- function(names) {
+  n.use<-sym(names)
+  plotbox <- ggplot(comandes,aes(x=!! n.use)) + geom_boxplot(col='black', fill='steelblue') + theme_classic()
+  return(plotbox)
+}
+
+#lapply(names(VarNum),loopNum)
+lapply(c(names(VarNum),names(VarInt)),loopNum1)
+```
+
+Pel que fa a la variable *order_price* veiem com hi ha 1 observacio superior als 900 dollars. La hem d'estudiar i veure si és un error o un cas particular on s'ha fet una comanda molt gran.
+```{r}
+comandes[which(comandes$order_price >1000),]
+```
+Es tracta d'un client que va demanar per sopar el dia 8 d'octubre per sopar i va encarregar una comanda molt gran: 10 plats de gambes (són un menjar car), 10 plats de Fish&Chips, 9 plats de pasta i 8 de salmó (també un producte força car). Per tant creiem que és un cas de comanda per un atap per moltes persones i no l'hem d'eliminar.
+
+Pel que fa a les altres variables no hi ha cap cas on es vegi especialment unes dades extranyes o molt allunyades del comportament normal.
+
+## 14. Eliminació d'algunes variables que creiem sense importancia (parlar amb tutora)
+
+En principi hi ha variables que no donarem cap importància dins l'estudi. La comanda en sí (saber exactament quina comanda s'ha fet de menjar) no ens interesa ja que ens volem fixar en els trajectes fins al client més que  saber qué pot menjar-se aquest. Així que eliminar la variable *order_items* sembla una bona opció.
+
+```{r}
+comandes<-comandes[,!colnames(comandes)=="order_items"]
+```
+
+
+Per altra banda, no he pogut trobar molta informació sobre el cost d'enviament i el desconte per lleialtat a la cadena de restaurants. Per aixó crec que s'hauria d'estudiar la possibilitat de treure de la base de dades les variables *customerHasloyaslty* i *delivery_fee*.
+
+
+## Assumpcions del problema
+- Asumirem que dos clients que viuen al mateix bloc de pisos actuaran com un únic client sol que ha realitzat dues comandes
+- Suposem que l'encarregat/encarregada de fer els trajectes té sempre les mateixes condicions per cada una de les comandes
+
+
+## Guardem la base de dades ja preprocessada.
+
+La base de dades tractada té 463 observacions i 11 variables. 
+El següent pas es iniciar un breu anàlisi descriptiu i per tant guardem aquestes dades en format  R.data per eficiència i les utilitzarem més endavant
+
+```{r}
+save(comandes, file = paste0(path0,"dataPRE.RData"))
+save(branches, file = paste0(path0,"branches.RData"))
+```
