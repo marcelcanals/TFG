@@ -1,0 +1,128 @@
+---
+title: "Modelització 2. Visualització de la solució"
+author: "Marcel Canals"
+date: "15/5/2022"
+output: html_document
+---
+
+Importació de la ruta desde SAS (SAS -> csv -> R)
+```{r}
+ruta <- read.csv("C:/Users/marce/OneDrive/Escriptori/UNI/C4/s2/TFG/Idea  Delivery restaurante Melbourne/bases de datos/base de modelos/soluciones(rutas) de SAS/solucio_p2_bo.csv")
+```
+
+Importació de les dades del problema en concret
+```{r}
+path<-"C:/Users/marce/OneDrive/Escriptori/UNI/C4/s2/TFG/Idea  Delivery restaurante Melbourne/bases de datos/"
+load(paste0(path,"data_post_descriptiva.RData"))
+load(paste0(path,"branches.RData"))
+load(paste0(path,"datosProblemaOpt.RData"))
+load(paste0(path,"RestProblema.RData"))
+```
+
+La idea es convertir la informació de la ruta per tal de poder construir gràficament segments que permetin veure la solució.
+
+Per això es crea una funció que identifica els punt inici i final de cada segment
+```{r}
+ruta_opt<-ruta[which(ruta$ruta==1),]
+lon_puntA<-c();lat_puntA<-c();lon_puntB<-c();lat_puntB<-c()
+for( i in 1:nrow(ruta_opt)){
+   lon_puntA<-c(lon_puntA,ddd$customer_lon[ruta_opt$fila[i]])
+   lat_puntA<-c(lat_puntA,ddd$customer_lat[ruta_opt$fila[i]])
+   lon_puntB<-c(lon_puntB,ddd$customer_lon[ruta_opt$columna[i]])
+   lat_puntB<-c(lat_puntB,ddd$customer_lat[ruta_opt$columna[i]])
+}
+ruta_opt<-cbind(ruta_opt,lon_puntA,lat_puntA,lon_puntB,lat_puntB)
+```
+
+
+
+```{r}
+#es grafiquen els domicilis dels clients
+plot(ddd$customer_lon,ddd$customer_lat,main="Ruta de les comandes de sopar en vacances del restaurant Baker",xlab = "Longitud",ylab="Latitud") 
+#xlim = c(144.9,145.05),ylim=c(-37.865,-37.765),
+
+#es grafica la localització dels restaurants 
+nom_res<-c()
+for(i in 1:length(rest)){
+points(branches$branch_lon[[which(branches$branch_code==rest[i])]],branches$branch_lat[[which(branches$branch_code==rest[i])]],col=(5),pch=9 ,cex=2)
+
+a<-branches$branch_name[branches$branch_code==rest[i]]
+nom_res<-c(nom_res,a)
+}
+legend("topleft",nom_res,text.col =(5),cex = 0.6)
+
+text(ddd$customer_lon,ddd$customer_lat,labels = order_id,cex=0.5,pos = 1)
+#es grafica les distancies entre clients
+segments(x0=ruta_opt$lon_puntA,y0=ruta_opt$lat_puntA,x1=ruta_opt$lon_puntB,y1=ruta_opt$lat_puntB,lwd = 2)
+# primer de tot es crea aquesta funció per saber els index que sintrodueixen a la funció segments
+x<-c()
+y<-c()
+for( i in 1:(nrow(ddd)-1)){
+  x_i<-rep(i,(nrow(ddd)-i))
+  x<-c(x,x_i)
+  y_i<-(i+1):nrow(ddd)
+  y<-c(y,y_i)
+}
+
+segments(x0=ddd$customer_lon[x],y0=ddd$customer_lat[x],x1=ddd$customer_lon[y],y1=ddd$customer_lat[y],lty = 2,col = 3,lwd = 0.1)
+# points(branches$branch_lon,branches$branch_lat,col=c(4,6,7),pch=7,cex=2)
+# legend("topleft",c(branches$branch_name[1],branches$branch_name[2],branches$branch_name[3]),text.col = c(4,6,7))
+
+```
+
+
+## Funció que comprova si tots els punts estan units a través de ruta_opt
+```{r}
+punts<-ruta_opt[,c(1,2)]
+cami<-c()
+cont<-1
+i<-nrow(punts)
+inici<-punts$fila[i]
+error<-FALSE
+ #es comença pel final perque es on hi ha el restaurant
+while(cont<nrow(punts)){
+  cami_i<-punts$columna[which(punts$fila==inici)]
+  if(cont==1){
+    cami<-c(cami,inici)
+  }
+  cami<-c(cami,cami_i)
+  if(cont>1 && sum(duplicated(cami)>=1)){
+    cont<-nrow(punts)
+    print("La ruta no uneix tots els punts!")
+    error<-TRUE
+  }
+  inici<-cami_i
+  cont<-cont+1
+  if(cont==nrow(punts) && error==FALSE){
+    print("La ruta uneix tots els punts")
+  }
+}
+cami
+```
+
+
+
+
+### Procediment per executar cada problema d'optimització
+1. S'estableixen les condicions del problema (quin àpat serà la comanda, si dependrà de si és un dia festiu o feiner, si és en cap de setmana o no i quins restaurants hi formaran part de la ruta)
+*en l'script de Modelització 1*
+
+2. Es crida la funció *calc_Dist* per calcular les distancies d'aquest problema
+*en l'script de Modelització 1*
+
+3. Es grafiquen totes les distàncies possibles del problema
+*en l'script de Modelització 1*
+
+4. S'afegeixen a les dades del problema les variables necesaries per implementar l'optimització al SAS
+*en l'script de Modelització 1*
+
+5. S'importen les dades cap a SAS (es guarden les distancies del problema en csv amb el nom *mod.csv* i també es guarden les dades del problema en *r.data*) *en l'script de Modelització 1*
+
+6. Dins del SAS on Demand s'elimina l'anterior *mod* i es carrega el nou amb les noves distancies. També s'elimina la anterior solució anomenada *solucio.csv* i es fa run del script *ModeloBase*
+*en SAS on demand*
+
+7. Una vegada executat el model, s'haurà creat un fitxer *solucio.csv* que conté la ruta optima. Es descarga desde SAS i s'introdueix a la carpeta *soluciones(rutas)* previament s'haura canviat el nom de *solucio* a *solucio_x* segons quants problemes s'hagin fet anteriorment.
+*en SAS on demand*
+
+8. Es carreguen les dades *solució_x* i *r.data* i es grafica la ruta comparant-la amb les distancies possibles
+*en l'script de Modelització 2*

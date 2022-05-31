@@ -1,0 +1,237 @@
+---
+title: "Descriptiva Gràfica Melbourne"
+author: "Marcel Canals"
+date: "31/3/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Una vegada hem realitzat tota la part de tractament de la nostra base de dades és hora d'analitzar d'una manera gràfica els clients i extreuren informació rellevant.
+
+Sobretot ens interesa realitzar el mapa dels clients agrupats per caps de setmana i dies entre setmana (variable que crearem), apats (variable *order_type*), i vacances (també crearem aquesta variable) entre d'altres.
+
+El primer que hem de fer és importat les dades ja preprocesades, que les hem guardat en un format R.data
+
+```{r}
+path<-"C:/Users/marce/OneDrive/Escriptori/UNI/C4/s2/TFG/Idea  Delivery restaurante Melbourne/bases de datos/"
+load(paste0(path,"dataPRE.RData"))
+load(paste0(path,"branches.RData"))
+```
+
+
+## Estadístics descriptius basics
+```{r}
+summary(comandes)
+```
+
+
+Utilitzarem uns gràfics construits a través de la llibreria *ggplot2* que ens permet treure més rendiment que graficant de forma estandard.
+
+## Gràfic de clients per caps de setmana i dies entre setmana
+
+Ens interesa saber si hi han diferències entre el nombre de comandes que es realitzen entre setmana i els caps de setmana. És lógic pensar que els caps de setmana es gasti més perquè no es treballa i es vol descansar de la rutina en general. 
+
+El problema que es planteja és que no tenim la variable binaria que ens indiqui els caps de setmana i per tant l'haurem de crear.
+
+A partir de la funció *wday* de la llibreria *lubridate* ens permet identificar els dies de la setmana del 1 al 7 tot i que no segueixen l'ordre lógic de 1-dilluns, 2-dimarts, 3-dimecres...
+Hem de trobar l'ordre i crear la variable binaria.
+
+```{r}
+library(lubridate)
+index_setmana<-wday(comandes$date)
+table(wday(comandes$date))
+```
+
+Mirant un calendari del 2018 trobem l'ordre següent:
+
+- *1*: dissabte
+- *2*: diumenge
+- *3*: dilluns
+- *4*: dimarts
+- *5*: dimecres
+- *6*: dijous
+- *7*: divendres
+
+El resultat de la taula dels comptatges no ens indica el resultat que esperavem. Sí que és cert que el dissabte és el dia amb més comandes però el diumenge és el que menys i hi ha molta més homogeneitat de la que esperavem. 
+
+Per tant hi ha 133 comandes realitzades el cap de setmana que representen el 29% de les comandes totals i 330 comandes fetes durant els dies entre setmana i són el 71% de les comandes.
+
+Creem la nova variable binaria *weekend* que pren valor 0 si és entre setmana i 1 si la comanda es realitza el cap de setmana.
+
+```{r}
+weekend<-c()
+for( i in 1:length(index_setmana)){
+  if(index_setmana[i]==1 || index_setmana[i]==2)
+    weekend<-c(weekend,1)
+  else{
+    weekend<-c(weekend,0)
+  }
+}
+table(weekend) #en efecte hem creat la variable binaria
+```
+
+La afegim a la base de dades i grafiquem.
+
+```{r}
+library(ggplot2)
+comandes$weekend<-weekend
+comandes$weekend<-as.factor(comandes$weekend)
+ggplot(comandes,aes(customer_lon,customer_lat,color=weekend))+
+  geom_point()+ guides(colour = guide_legend(title = "Cap de setmana"))+ggtitle("Mapa dels clients segons el dia de la setmana")+xlab("Longitud")+ylab("Latitud")
+```
+
+La zona més central de la ciutat és la que realitza més comandes els caps de setmana, en canvi la zona sud-est de Melbourne sobretot demana els dies entre setmana.
+
+## Gràfic de clients per vacances
+
+Un altre estudi interesant és veure si afecten les vacances al número de comandes realitzades. És raonable pensar que per vacances es vulgui cuinar menys i demanar més a domicili, però estudiarem si de veritat passa en aquest cas.
+
+A diferència d'Espanya, no es celebra la "Setmana Santa" sinó que existeixen altres tipus de celebracions festives. Així que vaig contactar amb una familia que havia estat 8 anys vivint allà per informar-me de com estructuren les seves vacances sempre tenint en compte que estem parlant de l'any 2018.
+
+Per una banda tenen el periode nadalenc, que per posar-nos en situació és com si fos el nostre agost. La majoria de gent fa vacances a partir de nadal i fins l'any nou (apart del Christmas Day el 25 de desembre ells celebren el Boxing Day el dia següent). 
+
+Per altra banda també tenen una espècie de setmana santa. Són festes de caire catòlic que es situen el 31 de març "Saturday before Easter Sunday", el 1 d'abril "
+Easter Sunday" i el 2 d'abril "Easter Monday".
+
+Per últim hi ha altres dies solts que el govern de Melbourne concedeix.
+
+Engloban totes les vacances tenim:
+
+- *Periode nadalenc*: Desde el 24 de desembre fins l'1 de gener (Any nou)
+- *Els dies Easter*: Del 31 de gener al 2 d'abril
+- *Dia d'Australia*: 26 de gener
+- *Dia del treballador*: 12 de març
+- *"Good Friday"*: 30 d'abril
+- *Dia d'Anzac*: 25 d'abril
+- *L'aniversari de la Reina*: 11 de juny
+- *El divendres abans de la gran final AFL*: 28 de setembre
+- *Dia de la Copa Melbourne*: Es la carrera a cavalls celebrada el 6 de novembre
+
+El proper pas que hem de realitzar és la creació d'una variable binaria anomenada *holiday* que imputés el valor 1 si el dia de la comanda és festiu o no.
+
+Per tant, primer hem de crear un vector amb les dates dels festius i evaluar per cada comanda la seva data corresponent.
+
+```{r}
+holy<-c("2018-01-01","2018-02-26","2018-03-12","2018-03-31"	,"2018-04-01"	,"2018-04-02"	,"2018-04-30"	,"2018-06-11"	,"2018-09-28"	,"2018-11-6","2018-12-24"	,"2018-12-25"	,"2018-12-26"	,"2018-12-27"	,"2018-12-28","	2018-12-29"	,"2018-12-30","2018-12-31")
+```
+
+Ara creem la funció:
+
+```{r}
+holiday<-c()
+date<- as.character.Date(comandes$date)
+date[1]<-"2018-08-07" #no se perquè el primer valor no mel treu bé
+j<-1
+for(i in 1:length(comandes$date)){
+  j<-1
+    while(j<=length(holy)){
+        if(date[i]==holy[j]){
+          holiday<-c(holiday,1)
+          j<-200
+        }
+        if(date[i]!=holy[j] && j==18){
+          holiday<-c(holiday,0)
+        }
+      j<-j+1
+    }
+}
+table(holiday)
+```
+
+Un cop realitzada la funció i executada, taulejem els resultats que ens mostren que hi han hagut 20 comandes en període de vacances i 443 en període laboral.
+
+La nostra hipótesis inicial de que hi ha més comandes en període de vacances no es pot afirmar ja que pel que fa aquests clients, les comandes suposen un 20/443=4.5% del total de les comandes i en total hi han 18 dies de vacances respecte els 365 dies de l'any (18/365=4.9%).
+
+Construim el gràfic dels clients agrupan per comandes en període festiu i no festiu.
+
+
+```{r}
+comandes$holiday<-holiday
+comandes$holiday<-as.factor(comandes$holiday)
+ggplot(comandes,aes(customer_lon,customer_lat,color=holiday))+
+  geom_point()+ guides(colour = guide_legend(title = "Dies de vacances"))+ggtitle("Mapa dels clients segons el període de vacances")+xlab("Longitud")+ylab("Latitud")
+```
+
+Les comandes realitzades en època de vacances no reflexen cap patró significatiu.
+
+
+## Gràfic de clients per apats
+
+Un dels gràfics més importants i estratificació de la mostra será pel cas dels àpats. Estudiarem les comandes separant-les per l'esmorzar, el dinar i el sopar.
+ 
+```{r}
+ggplot(comandes,aes(customer_lon,customer_lat,color=order_type))+
+  geom_point()+ guides(colour = guide_legend(title = "Àpat"))+ggtitle("Mapa dels clients segons l'àpat")+xlab("Longitud")+ylab("Latitud")
+```
+
+Es pot veure que hi ha bastanta equidispersió segons el tipus d'àpat. No hi ha cap zona de la ciutat on es demani més un àpat que un altre.
+
+Per estar-nos segurs el que farem és estratificicar la base de dades per aquesta variable.
+També és una manera de reduir el nombre de clients a fi de poder crear un model de cara a l'optimització de trajectes.
+
+```{r}
+comandes_break<-comandes[which(comandes$order_type=="Breakfast"),]
+comandes_din<-comandes[which(comandes$order_type=="Dinner"),]
+comandes_lun<-comandes[which(comandes$order_type=="Lunch"),]
+data.frame(
+breakfast=length(comandes_break$order_id),lunch=length(comandes_lun$order_id),dinner=length(comandes_din$order_id))
+```
+
+Efectivament el nombre de clients per àpat és semblant, el sopar és la comanda més solicitada i l'esmorzar el que menys (no ens hem de confondre amb dinar i "dinner" perquè la paraula anglesa es refereix a l'últim àpat que es fa al dia).
+
+Gràfiquem els tres tipus per separat.
+
+```{r,out.width="50%"}
+ggplot(comandes_break,aes(customer_lon,customer_lat))+
+  geom_point(color=2)+ guides(colour = guide_legend(title = "Àpat"))+ggtitle("Mapa dels clients que han demanat esmorzar")+xlab("Longitud")+ylab("Latitud")
+ggplot(comandes_lun,aes(customer_lon,customer_lat))+
+  geom_point(color=3)+ guides(colour = guide_legend(title = "Àpat"))+ggtitle("Mapa dels clients que han demanat dinar")+xlab("Longitud")+ylab("Latitud")
+ggplot(comandes_din,aes(customer_lon,customer_lat))+
+  geom_point(color=4)+ guides(colour = guide_legend(title = "Àpat"))+ggtitle("Mapa dels clients que han demanat sopar")+xlab("Longitud")+ylab("Latitud")
+```
+
+
+## Gràfic de clients per establiment de comanda
+
+També ens pot interessar de quin establiment prové la comanda. Recordem que no es tracta d'un problema on un repartidor d'un establiment reparteix només la comanda i torna sinó que pot anar variant d'establiment i així realitzar diverses comandes dels 3 restaurnats diferents. Si fos el primer cas es tractaria de 3 problemes d'optimització separats amb un node inicial únic.
+
+```{r}
+ggplot(comandes,aes(customer_lon,customer_lat,color=branch_code))+
+  geom_point()+ guides(colour = guide_legend(title = "Establiment"))+ggtitle("Mapa dels clients segons l'establiment")+xlab("Longitud")+ylab("Latitud")
+```
+
+Es mostra una equidispersió bastant notable. A tots els diferents llocs de la ciutat hi ha comandes provinents dels 3 establiments. 
+
+## Gràfic de valor de comanda per client
+
+Per últim volem estudiar si hi ha relació entre la zona on viu el client i el preu de la comanda. En cas que trobesim un patró podriem diferenciar zones de Melbourne amb un nivell socioeconòmic més elevat que altres.
+
+```{r}
+ggplot(comandes,aes(customer_lon,customer_lat,color=order_price))+
+  geom_point()+ guides(colour = guide_legend(title = "Preu"))+ggtitle("Mapa dels clients segons el preu de comanda")+xlab("Longitud")+ylab("Latitud")
+```
+
+La part central de nord a sud hi ha més clients amb comandes més barates. Però aquest és dels únics patrons que podriem observar i tot i així no és prou convincent.
+
+
+## Guardem la base de dades amb els canvis realitzats
+
+Hem acabat la part descriptiva, a través dels gràfics hem pogut anar extraient informació sobre les comandes i els clients.
+
+A més hem creat dues noves variables; *weekend* (binaria amb 1 = és cap de setmana i 0 = cas contrari) i *holiday* (binaria amb 1 = és període de vacances i 0 = cas contrari).
+
+També hem realitzat una estratificació per apats, per així anar reduint el nombre de la mostra per poder modelitzar diferents casos i començar a calcular distàncies entre nodes.
+Així doncs exportarem en format data la base de dades *comandes* i les 3 subbases.
+
+
+```{r}
+save(comandes, file = paste0(path,"data_post_descriptiva.RData"))
+save(comandes_break, file = paste0(path,"comandes_break.RData"))
+save(comandes_lun, file = paste0(path,"comandes_lun.RData"))
+save(comandes_din, file = paste0(path,"comandes_din.RData"))
+```
+
+

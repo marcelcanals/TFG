@@ -1,0 +1,438 @@
+---
+title: "Modelització1"
+author: "Marcel Canals"
+date: "4/4/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+La modelització és una de les parts més importants en els problemes d'optimització.
+Hem de vigilar de no cometre errors en aquesta part ja que es poden anar arrastrant sense que ens donem compte.
+
+### Objectiu
+
+El nostre objectiu en aquest pas és trobar la combinació de variables que tingui un tamany de mostra oportú per tal de començar a tractar el problema desde un punt de vista d'optimització, identificant els nodes inici, creant els arcs/distancies entre nodes tenint en compte diversos factors...
+
+### Importació de les dades
+
+Una vegada més describim el camí i importem les dues bases de referència (*comandes* i *branches*) i les subbases creades en l'anterior script.
+
+```{r}
+path<-"C:/Users/marce/OneDrive/Escriptori/UNI/C4/s2/TFG/Idea  Delivery restaurante Melbourne/bases de datos/"
+load(paste0(path,"data_post_descriptiva.RData"))
+load(paste0(path,"branches.RData"))
+load(paste0(path,"comandes_break.RData"))
+load(paste0(path,"comandes_lun.RData"))
+load(paste0(path,"comandes_din.RData"))
+```
+
+## Set de combinació 1: Àpats i Caps de Setmana/Dies entre setmana
+
+La primera combinació que farem serà estudiar les variables *order_type* i *weekend*. Recordem que ja tenim les subbases estratificades per *order_type*.
+
+Crearem i graficarem 6 situacions:
+
+- *com_break_week*: Les comandes per l'esmorzar que es realitzen durant la setmana
+- *com_break_end*: Les comandes per l'esmorzar que es realitzen durant el cap de setmana
+- *com_lun_week*: Les comandes pel dinar que es realitzen durant la setmana
+- *com_lun_end*: Les comandes pel dinar que es realitzen durant el cap de setmana
+- *com_din_week*: Les comandes pel sopar que es realitzen durant la setmana
+- *com_din_end*: Les comandes pel sopar que es realitzen durant el cap de setmana
+
+### Creació de les combinacions
+Al ja tenir una predisposició amb els 3 subgrups creats en la part descriptiva ens serà més fàcil formar les combinacions. Comencem amb l'esmorzar durant la setmana.
+
+#### 1.1 Esmorzar:Entre setmana
+
+Primer es crea la combinació:
+
+```{r}
+com_break_week<-comandes_break[which(comandes_break$weekend==0),]
+```
+
+I després es grafica:
+
+```{r,out.width="50%"}
+plot(com_break_week$customer_lon,com_break_week$customer_lat,xlim = c(144.9,145.05),ylim=c(-37.865,-37.765),main="Comandes d'esmorzar entre setmana",xlab = "Longitud",ylab="Latitud") 
+points(branches$branch_lon,branches$branch_lat,col=c(4,6,7),pch=7,cex=2)
+legend("topleft",c(branches$branch_name[1],branches$branch_name[2],branches$branch_name[3]),text.col = c(4,6,7))
+```
+
+El núvol de punts ja no és tangran i es comencen a discernir els clients.
+
+
+
+
+#### 1.2 Esmorzar:Cap de setmana
+
+Primer es crea la combinació:
+
+```{r}
+com_break_end<-comandes_break[which(comandes_break$weekend==1),]
+```
+
+I després es grafica:
+
+```{r,out.width="50%"}
+plot(com_break_end$customer_lon,com_break_end$customer_lat,xlim = c(144.9,145.05),ylim=c(-37.865,-37.765),main="Comandes d'esmorzar el cap de setmana",xlab = "Longitud",ylab="Latitud") 
+points(branches$branch_lon,branches$branch_lat,col=c(4,6,7),pch=7,cex=2)
+legend("topleft",c(branches$branch_name[1],branches$branch_name[2],branches$branch_name[3]),text.col = c(4,6,7))
+```
+
+El núvol de punts es concentra en el centre de la ciutat i la part més sud.
+
+#### 1.3 Dinar:Entre setmana
+
+Posar especial atenció entre dinar("lunch") i sopar("dinner")
+
+```{r}
+com_lun_week<-comandes_lun[which(comandes_lun$weekend==0),]
+```
+
+Grafiquem la combinació:
+
+```{r,out.width="50%"}
+plot(com_lun_week$customer_lon,com_lun_week$customer_lat,xlim = c(144.9,145.05),ylim=c(-37.865,-37.765),main="Comandes de dinar entre setmana",xlab = "Longitud",ylab="Latitud") 
+points(branches$branch_lon,branches$branch_lat,col=c(4,6,7),pch=7,cex=2)
+legend("topleft",c(branches$branch_name[1],branches$branch_name[2],branches$branch_name[3]),text.col = c(4,6,7))
+```
+
+#### 1.4 Dinar:Cap de setmana
+
+Posar especial atenció entre dinar("lunch") i sopar("dinner")
+
+```{r}
+com_lun_end<-comandes_lun[which(comandes_lun$weekend==1),]
+```
+
+Grafiquem la combinació:
+
+```{r,out.width="50%"}
+plot(com_lun_end$customer_lon,com_lun_end$customer_lat,xlim = c(144.9,145.05),ylim=c(-37.865,-37.765),main="Comandes de dinar entre setmana",xlab = "Longitud",ylab="Latitud") 
+points(branches$branch_lon,branches$branch_lat,col=c(4,6,7),pch=7,cex=2)
+legend("topleft",c(branches$branch_name[1],branches$branch_name[2],branches$branch_name[3]),text.col = c(4,6,7))
+```
+#### 1.5 Sopar:Entre setmana
+
+
+```{r}
+com_din_week<-comandes_din[which(comandes_din$weekend==0),]
+```
+
+Grafiquem la combinació:
+
+```{r,out.width="50%"}
+plot(com_din_week$customer_lon,com_din_week$customer_lat,xlim = c(144.9,145.05),ylim=c(-37.865,-37.765),main="Comandes de sopar entre setmana",xlab = "Longitud",ylab="Latitud") 
+points(branches$branch_lon,branches$branch_lat,col=c(4,6,7),pch=7,cex=2)
+legend("topleft",c(branches$branch_name[1],branches$branch_name[2],branches$branch_name[3]),text.col = c(4,6,7))
+```
+
+#### 1.6 Sopar:Cap de setmana
+
+
+```{r}
+com_din_end<-comandes_din[which(comandes_din$weekend==1),]
+```
+
+Grafiquem la combinació:
+
+```{r,out.width="50%"}
+plot(com_din_end$customer_lon,com_din_end$customer_lat,xlim = c(144.9,145.05),ylim=c(-37.865,-37.765),main="Comandes de sopar a Melbourne",xlab = "Longitud",ylab="Latitud") 
+points(branches$branch_lon,branches$branch_lat,col=c(4,6,7),pch=7,cex=2)
+legend("topleft",c(branches$branch_name[1],branches$branch_name[2],branches$branch_name[3]),text.col = c(4,6,7))
+```
+
+### Set de combinació 2: Àpats i Vacances/No vacances
+
+La segona combinació que farem serà estudiar la variable *order_type* però en aquest cas realitzant subgrups per la variable *holyday*, que mesura els dies festius.
+
+Crearem i graficarem  també 6 situacions perquè és una variable amb 2 factors i una amb 3:
+
+- *com_break_norm*: Les comandes per l'esmorzar que es realitzen durant els dies feiners
+- *com_break_holy*: Les comandes per l'esmorzar que es realitzen durant les vacances
+- *com_lun_norm*: Les comandes pel dinar que es realitzen durant els dies feiners
+- *com_lun_holy*: Les comandes pel dinar que es realitzen durant les vacances
+- *com_din_norm*: Les comandes pel sopar que es realitzen durant els dies feiners
+- *com_din_holy*: Les comandes pel sopar que es realitzen durant les vacances
+
+#### 2.1 Esmorzar:Dies feiners
+
+Primer es crea la combinació:
+
+```{r}
+com_break_norm<-comandes_break[which(comandes_break$holiday==0),]
+```
+
+I després es grafica:
+
+```{r,out.width="50%"}
+plot(com_break_norm$customer_lon,com_break_norm$customer_lat,xlim = c(144.9,145.05),ylim=c(-37.865,-37.765),main="Comandes d'esmorzar els dies feiners",xlab = "Longitud",ylab="Latitud") 
+points(branches$branch_lon,branches$branch_lat,col=c(4,6,7),pch=7,cex=2)
+legend("topleft",c(branches$branch_name[1],branches$branch_name[2],branches$branch_name[3]),text.col = c(4,6,7))
+```
+
+
+#### 2.2 Esmorzar:Vacances
+
+```{r}
+com_break_holy<-comandes_break[which(comandes_break$holiday==1),]
+```
+
+Grafiquem:
+
+```{r,out.width="50%"}
+plot(com_break_holy$customer_lon,com_break_holy$customer_lat,xlim = c(144.9,145.05),ylim=c(-37.865,-37.765),main="Comandes d'esmorzar el dies de vacances",xlab = "Longitud",ylab="Latitud") 
+points(branches$branch_lon,branches$branch_lat,col=c(4,6,7),pch=7,cex=2)
+legend("topleft",c(branches$branch_name[1],branches$branch_name[2],branches$branch_name[3]),text.col = c(4,6,7))
+```
+En aquest cas només hi ha 8 comandes d'esmorzar realitzades en període de vacances.
+
+#### 2.3 Dinar:Dies feiners
+
+```{r}
+com_lun_norm<-comandes_lun[which(comandes_lun$holiday==0),]
+```
+
+Grafiquem la combinació:
+
+```{r,out.width="50%"}
+plot(com_lun_norm$customer_lon,com_lun_norm$customer_lat,xlim = c(144.9,145.05),ylim=c(-37.865,-37.765),main="Comandes de dinar els dies feiners",xlab = "Longitud",ylab="Latitud") 
+points(branches$branch_lon,branches$branch_lat,col=c(4,6,7),pch=7,cex=2)
+legend("topleft",c(branches$branch_name[1],branches$branch_name[2],branches$branch_name[3]),text.col = c(4,6,7))
+```
+
+#### 2.4 Dinar:Vacances
+
+
+```{r}
+com_lun_holy<-comandes_lun[which(comandes_lun$holiday==1),]
+```
+
+Grafiquem la combinació:
+
+```{r,out.width="50%"}
+plot(com_lun_holy$customer_lon,com_lun_holy$customer_lat,xlim = c(144.9,145.05),ylim=c(-37.865,-37.765),main="Comandes de dinar en període de vacances",xlab = "Longitud",ylab="Latitud") 
+points(branches$branch_lon,branches$branch_lat,col=c(4,6,7),pch=7,cex=2)
+legend("topleft",c(branches$branch_name[1],branches$branch_name[2],branches$branch_name[3]),text.col = c(4,6,7))
+```
+
+#### 2.5 Sopar:Dies feiners
+
+```{r}
+com_din_norm<-comandes_din[which(comandes_din$holiday==0),]
+```
+
+Grafiquem la combinació:
+
+```{r,out.width="50%"}
+plot(com_din_norm$customer_lon,com_din_norm$customer_lat,xlim = c(144.9,145.05),ylim=c(-37.865,-37.765),main="Comandes de sopar en dies feiners",xlab = "Longitud",ylab="Latitud") 
+points(branches$branch_lon,branches$branch_lat,col=c(4,6,7),pch=7,cex=2)
+legend("topleft",c(branches$branch_name[1],branches$branch_name[2],branches$branch_name[3]),text.col = c(4,6,7))
+```
+
+#### 2.6 Sopar:Vacances
+
+```{r}
+com_din_holy<-comandes_din[which(comandes_din$holiday==1),]
+```
+
+Grafiquem la combinació:
+
+```{r,out.width="50%"}
+plot(com_din_holy$customer_lon,com_din_holy$customer_lat,xlim = c(144.9,145.05),ylim=c(-37.865,-37.765),main="Comandes de sopar en període de vacances",xlab = "Longitud",ylab="Latitud") 
+points(branches$branch_lon,branches$branch_lat,col=c(4,6,7),pch=7,cex=2)
+legend("topleft",c(branches$branch_name[1],branches$branch_name[2],branches$branch_name[3]),text.col = c(4,6,7))
+```
+
+
+### Creació de les distàncies entre nodes i la seva problemàtica
+
+La idea és utilitzar la funció distGeo que afaga la distància euclidiana però fent una modificació per tindre en compte "la distància real". Un profesor va dir que una aproximacio seria multiplicar 1.3.
+
+Aquesta funció ja té en compte la elipse que forma la Terra (tot i que en aquest cas el canvi en mínim) 
+Entrant en detall, s'ha de crear una funció que donada una variable de longitud, una de latitud i y comandes, crei una matriu y*y amb diagonal 0 amb les distancies en metres entre els punts.
+```{r}
+calc_Dist<- function(ddd){
+  library(geosphere)
+  attach(ddd)
+  ## función de distància
+  vect<-c()
+  for( i in 1:length(order_id)){
+        for( j in 1:length(order_id)){
+          p1_lon<-customer_lon[i]
+          p1_lat<-customer_lat[i]
+          p2_lon<-customer_lon[j]
+          p2_lat<-customer_lat[j]
+          
+          a<-distGeo(p1=c(p1_lon,p1_lat),p2=c(p2_lon,p2_lat))
+          vect<-c(vect,a)
+        }  
+  }
+return(vect)
+}
+```
+
+
+
+#####################################################################################################
+
+#PROBLEMA 1
+# Creació de les distàncies en el cas sopar en caps de setmana de BAKER: 
+
+```{r,warning=FALSE}
+#selecionem model i restaurant
+rest<-c("BK")
+dd<-com_din_holy[which(com_din_holy$branch_code==rest),]
+#Pel calcul de les distancies nomes necesitem l'identificador, la latitud i longitud
+ddd<-dd[,c(1,7,8)]
+
+#afegim com si fos un punt la localització del restaurant
+for ( i in 1:length(rest)){
+ddd[length(ddd$order_id)+1,c(1:dim(ddd)[2])]<-c(rest[i],branches$branch_lat[which(branches$branch_code==rest[i])],branches$branch_lon[which(branches$branch_code==rest[i])]) 
+ddd$customer_lat<-as.numeric(ddd$customer_lat)
+ddd$customer_lon<-as.numeric(ddd$customer_lon)
+}
+```
+
+Es crida la funció *calc_Dist* per calcular les distancies d'aquest problema
+```{r,warning=FALSE}
+#La funció nomes pot tornar el vector de distancies i s'ha de crear en data.frame fora.
+dist<-calc_Dist(ddd)
+dist<-as.data.frame(matrix(dist,nrow = nrow(ddd)))
+#names(dist)<-order_id  
+#rownames(dist)<-order_id
+
+```
+## grafiquem les distàncies
+```{r}
+#La funció nomes pot tornar el vector de distancies i s'ha de crear en data.frame fora.
+dist<-calc_Dist(ddd)
+dist<-as.data.frame(matrix(dist,nrow = nrow(ddd)))
+#names(dist)<-order_id  
+#rownames(dist)<-order_id
+```
+## grafiquem les distàncies
+
+```{r,warning=FALSE}
+#es grafiquen els domicilis dels clients
+plot(ddd$customer_lon,ddd$customer_lat,main="Comandes de sopar en vacances del restaurant Baker",xlab = "Longitud",ylab="Latitud") 
+#,xlim = c(144.9,145.05),ylim=c(-37.865,-37.765)
+#es grafica la localització del restaurant o restaurants que participen en la comanda
+nom_res<-c()
+for(i in 1:length(rest)){
+points(branches$branch_lon[[which(branches$branch_code==rest[i])]],branches$branch_lat[[which(branches$branch_code==rest[i])]],col=(5),pch=9 ,cex=2)
+
+a<-branches$branch_name[branches$branch_code==rest[i]]
+nom_res<-c(nom_res,a)
+}
+legend("topleft",nom_res,text.col =(5),cex = 0.6)
+text(ddd$customer_lon,ddd$customer_lat,labels = order_id,cex=0.5,pos = 1)
+#es grafica les distancies entre clients
+
+#primer de tot es crea aquesta funció per saber els index que sintrodueixen a la funció segments
+x<-c()
+y<-c()
+for( i in 1:(nrow(ddd)-1)){
+  x_i<-rep(i,(nrow(ddd)-i))
+  x<-c(x,x_i)
+  y_i<-(i+1):nrow(ddd)
+  y<-c(y,y_i)
+}
+
+segments(x0=ddd$customer_lon[x],y0=ddd$customer_lat[x],x1=ddd$customer_lon[y],y1=ddd$customer_lat[y],lty = 2,col = 3)
+#points(branches$branch_lon,branches$branch_lat,col=c(4,6,7),pch=7,cex=2)
+#legend("topleft",c(branches$branch_name[1],branches$branch_name[2],branches$branch_name[3]),text.col = c(4,6,7))
+```
+####################################################################################################
+
+#PROBLEMA 2
+# Creació de les distàncies en el cas sopar en caps de setmana de BAKER: 
+
+
+
+```{r,warning=FALSE}
+#selecionem model i restaurant
+rest<-c("TP")
+dd<-com_din_holy[which(com_din_holy$branch_code==rest),]
+#Pel calcul de les distancies nomes necesitem l'identificador, la latitud i longitud
+ddd<-dd[,c(1,7,8)]
+
+#afegim com si fos un punt la localització del restaurant
+for ( i in 1:length(rest)){
+ddd[length(ddd$order_id)+1,c(1:dim(ddd)[2])]<-c(rest[i],branches$branch_lat[which(branches$branch_code==rest[i])],branches$branch_lon[which(branches$branch_code==rest[i])]) 
+ddd$customer_lat<-as.numeric(ddd$customer_lat)
+ddd$customer_lon<-as.numeric(ddd$customer_lon)
+}
+```
+
+
+
+S'ha de cridar la funció que donada una variable de longitud, una de latitud i y comandes, crei una matriu y*y amb diagonal 0 amb les distancies en metres entre els punts.
+```{r}
+#La funció nomes pot tornar el vector de distancies i s'ha de crear en data.frame fora.
+dist<-calc_Dist(ddd)
+dist<-as.data.frame(matrix(dist,nrow = nrow(ddd)))
+#names(dist)<-order_id  
+#rownames(dist)<-order_id
+```
+## grafiquem les distàncies
+
+```{r,warning=FALSE}
+#es grafiquen els domicilis dels clients
+plot(ddd$customer_lon,ddd$customer_lat,main="Comandes de sopar en vacances del restaurant Baker",xlab = "Longitud",ylab="Latitud") 
+#,xlim = c(144.9,145.05),ylim=c(-37.865,-37.765)
+#es grafica la localització del restaurant o restaurants que participen en la comanda
+nom_res<-c()
+for(i in 1:length(rest)){
+points(branches$branch_lon[[which(branches$branch_code==rest[i])]],branches$branch_lat[[which(branches$branch_code==rest[i])]],col=(5),pch=9 ,cex=2)
+
+a<-branches$branch_name[branches$branch_code==rest[i]]
+nom_res<-c(nom_res,a)
+}
+legend("topleft",nom_res,text.col =(5),cex = 0.6)
+text(ddd$customer_lon,ddd$customer_lat,labels = order_id,cex=0.5,pos = 1)
+#es grafica les distancies entre clients
+
+#primer de tot es crea aquesta funció per saber els index que sintrodueixen a la funció segments
+x<-c()
+y<-c()
+for( i in 1:(nrow(ddd)-1)){
+  x_i<-rep(i,(nrow(ddd)-i))
+  x<-c(x,x_i)
+  y_i<-(i+1):nrow(ddd)
+  y<-c(y,y_i)
+}
+
+segments(x0=ddd$customer_lon[x],y0=ddd$customer_lat[x],x1=ddd$customer_lon[y],y1=ddd$customer_lat[y],lty = 2,col = 3)
+#points(branches$branch_lon,branches$branch_lat,col=c(4,6,7),pch=7,cex=2)
+#legend("topleft",c(branches$branch_name[1],branches$branch_name[2],branches$branch_name[3]),text.col = c(4,6,7))
+```
+
+####################################################################################################
+
+
+De cara a optimitzar aquest problema en concret a través de SAS s'han d'introduir unes noves variables que ajuden a la importació de les dades a aquest nou software.
+### Tractament
+```{r}
+clients<-c(1:nrow(dist))
+constant<-rep(1,nrow(dist))
+mod_p2<-cbind(constant,clients,dist)
+```
+### Exportem en format csv el model per implementar-lo al SAS
+```{r,warning=FALSE}
+library(readr)
+setwd("C:/Users/marce/OneDrive/Escriptori/UNI/C4/s2/TFG/Idea  Delivery restaurante Melbourne/bases de datos/base de modelos")
+write_csv(mod_p2,file ="mod.csv",append = FALSE)
+```
+Cada vegada que es vulgui exportar en csv les dades, s'haura d'anar a la carpeta en qüestió i eliminar les dades anteriors.
+
+### Es guarda la base de dades del problema en concret que s'està tractant
+```{r}
+save(ddd, file = paste0(path,"datosProblemaOpt.RData"))
+save(rest, file = paste0(path,"RestProblema.RData"))
+```
+
+
