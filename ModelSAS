@@ -1,0 +1,63 @@
+/* importació de les dades*/
+/* Aquest script de SAS prové de l'aplicació en linea SASonDemand*/
+
+%web_drop_table(mod);
+
+FILENAME REFFILE '/home/u47389835/TFG/mod.csv';
+
+PROC IMPORT DATAFILE=REFFILE
+	DBMS=CSV
+	OUT=mod;
+	GETNAMES=YES;
+RUN;
+proc print data= mod;
+proc contents data=mod;run;
+%web_open_table(mod);
+
+/* optimització del problema */
+proc optmodel;
+	/* declaració dels index sets */
+	set row;
+	set col;
+	
+	/* declaració dels paràmetres */
+	number demanda{col};
+	number distancies{row, col};
+	number oferta{row};
+	
+	/* importació de valors dels índex*/
+	read data mod into col=[clients] demanda[clients]=col("constant");
+	read data mod into row=[clients] oferta[clients]=col("constant");
+	/* importació de les distàncies */
+	read data mod into row=[clients]
+	 {d in col} <distancies[clients,d]=col("V"||d)>;
+	 
+	 /*matriu binaria que indicara la ruta òptima*/
+	var X{row, col} BINARY;
+	
+	/* minimització de la suma de distancies*/
+	min z = sum{i in row, j in col} X[i,j] * distancies[i,j];
+	
+	/*restriccions*/
+	/* La ruta no pasa dues vegades pel mateix client*/
+	con ClientCol{j in col}: sum{i in row} X[i,j] = 1;
+	con ClientRow{i in row}: sum{j in col} X[i,j] = 1;
+	/* La ruta ha de conectar tots els clients i els restaurants en qüestió */
+	*con ConectaTots_A{i in row,j in col}:  X[i,j]+X[j,i]<=1;
+	*con ConectaTots_B{i in row,j in col, k in row}:  X[i,j]+X[j,k]+X[k,i]<=2;
+	*con ConectaTots_C{i in row,j in col, k in row, l in col}:  X[i,j]+X[j,k]+X[k,l]+X[l,i]<=3;
+	*con ConectaTots_D{i in row,j in col, k in row, l in col, m in row}: X[i,j]+X[j,k]+X[k,l]+X[l,m]+X[m,i]<=4;
+	*con ConectaTots_E{i in row,j in col, k in row, l in col, m in row, n in row}: X[i,j]+X[j,k]+X[k,l]+X[l,m]+X[m,n]+X[n,i]<=5;	
+	
+	/*Resolució del problema i visualització del resultat*/
+	SOLVE;
+	print z;
+	*print distancies; 
+	print X;
+	
+	/* Es guarden els resultats*/
+	   create data solucio
+       from [fila columna]={row,col} ruta=X;
+quit;
+proc print data=solucio;
+proc export data=solucio dbms=csv outfile='/home/u47389835/TFG/solucio.csv';
